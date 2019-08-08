@@ -26,12 +26,21 @@ type GomplateOpts struct {
 
 var opts GomplateOpts
 
+func numInputs() (num int) {
+	for _, filename := range opts.inputFiles {
+		if !isPartialFilename(filename) {
+			num++
+		}
+	}
+	return
+}
+
 func validateOpts(cmd *cobra.Command, args []string) error {
 	if cmd.Flag("in").Changed && cmd.Flag("file").Changed {
 		return errors.New("--in and --file may not be used together")
 	}
 
-	if len(opts.inputFiles) != len(opts.outputFiles) {
+	if numInputs() != len(opts.outputFiles) {
 		return fmt.Errorf("Must provide same number of --out (%d) as --file (%d) options", len(opts.outputFiles), len(opts.inputFiles))
 	}
 

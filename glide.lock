@@ -1,6 +1,8 @@
-hash: c5f5c0c3cee4fa241f3ad60210be5636509d0688021dea0542347a2dcc3341db
-updated: 2017-06-05T10:17:24.952432233-04:00
+hash: d29bf28476e5a51058454f3b7f4fc5484fe96073ae4b8e00a62480266fc21723
+updated: 2017-06-06T20:56:48.631936166+09:00
 imports:
+- name: github.com/aokoli/goutils
+  version: 3391d3790d23d03408670993e957e8f408993c34
 - name: github.com/aws/aws-sdk-go
   version: 0b6039ef3d10c1eda49843ebf9773dcc5bba0169
   subpackages:
@@ -34,12 +36,30 @@ imports:
   - memfs
 - name: github.com/go-ini/ini
   version: 6f66b0e091edb3c7b380f7c4f0f884274d550b67
+- name: github.com/hairyhenderson/gomplate
+  version: 3837f4874bf8f690bc97d8f83a957804c7ce6783
+  repo: https://github.com/hairyhenderson/gomplate
+  subpackages:
+  - aws
+  - vault
+  - version
 - name: github.com/hairyhenderson/toml
   version: 44f109fd33239176c2a8febd4811e1dbc87d9c57
+- name: github.com/huandu/xstrings
+  version: 3959339b333561bf62a38b424fd41517c2c90f40
+- name: github.com/imdario/mergo
+  version: 3e95a51e0639b4cf372f2ccf74c86749d747fbdc
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/jmespath/go-jmespath
   version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
+- name: github.com/Masterminds/semver
+  version: 59c29afe1a994eacb71c833025ca7acf874bb1da
+- name: github.com/Masterminds/sprig
+  version: 9526be0327b26ad31aa70296a7b10704883976d5
+  repo: https://github.com/Masterminds/sprig
+- name: github.com/satori/go.uuid
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/spf13/cobra
   version: 7b1b6e8dc027253d45fc029bc269d1c019f83a34
 - name: github.com/spf13/pflag
@@ -48,6 +68,11 @@ imports:
   version: 708a42d246822952f38190a8d8c4e6b16a0e600c
   subpackages:
   - codec
+- name: golang.org/x/crypto
+  version: 122d919ec1efcfb58483215da23f815853e24b81
+  subpackages:
+  - pbkdf2
+  - scrypt
 - name: gopkg.in/yaml.v2
   version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
   repo: https://github.com/go-yaml/yaml.git

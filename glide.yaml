@@ -1,5 +1,14 @@
-package: github.com/hairyhenderson/gomplate
+package: github.com/boazy/gomplate
 import:
+- package: github.com/Masterminds/sprig
+  version: ^2.12.0
+  repo: https://github.com/Masterminds/sprig
+- package: github.com/hairyhenderson/gomplate
+  repo: https://github.com/hairyhenderson/gomplate
+  subpackages:
+  - aws
+  - vault
+  - version
 - package: github.com/aws/aws-sdk-go
   version: 1.8.26
   subpackages:

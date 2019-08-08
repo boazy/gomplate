@@ -2,25 +2,33 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // == Direct input processing ========================================
 
-func processInputFiles(stringTemplate string, input []string, output []string, g *Gomplate) error {
-	input, err := readInputs(stringTemplate, input)
+func processInputFiles(stringTemplate string, inputFiles []string, outputs []string, g *Gomplate) error {
+	inputs, err := readInputs(stringTemplate, inputFiles)
 	if err != nil {
 		return err
 	}
 
-	if len(output) == 0 {
-		output = []string{"-"}
+	if len(outputs) == 0 {
+		outputs = []string{"-"}
 	}
 
-	for n, input := range input {
-		if err := renderTemplate(g, input, output[n]); err != nil {
+	n := 0
+	for _, input := range inputs {
+		output := ""
+		if !input.partial {
+			output = outputs[n]
+			n++
+		}
+		if err := renderTemplate(g, input, output); err != nil {
 			return err
 		}
 	}
@@ -61,11 +69,14 @@ func processInputDir(input string, output string, g *Gomplate) error {
 				return err
 			}
 		} else {
-			inString, err := readInput(nextInPath)
+			input, err := readInput(nextInPath)
 			if err != nil {
 				return err
 			}
-			if err := renderTemplate(g, inString, nextOutPath); err != nil {
+			if input.partial {
+				nextOutPath = "" // Don't create files for partials
+			}
+			if err := renderTemplate(g, input, nextOutPath); err != nil {
 				return err
 			}
 		}
@@ -75,26 +86,44 @@ func processInputDir(input string, output string, g *Gomplate) error {
 
 // == File handling ================================================
 
-func readInputs(input string, files []string) ([]string, error) {
-	if input != "" {
-		return []string{input}, nil
+func isPartialFilename(filename string) bool {
+	return strings.HasPrefix(filepath.Base(filename), "_")
+}
+
+type Input struct {
+	filename string
+	text     string
+	partial  bool
+}
+
+func textInput(text string) Input {
+	return Input{text: text}
+}
+
+func fileInput(filename, text string) (input Input) {
+	return Input{filename: filename, text: text, partial: isPartialFilename(filename)}
+}
+
+func readInputs(inputStr string, files []string) ([]Input, error) {
+	if inputStr != "" {
+		return []Input{textInput(inputStr)}, nil
 	}
 	if len(files) == 0 {
 		files = []string{"-"}
 	}
-	ins := make([]string, len(files))
+	ins := make([]Input, len(files))
 
 	for n, filename := range files {
-		inString, err := readInput(filename)
+		input, err := readInput(filename)
 		if err != nil {
 			return nil, err
 		}
-		ins[n] = inString
+		ins[n] = input
 	}
 	return ins, nil
 }
 
-func readInput(filename string) (string, error) {
+func readInput(filename string) (Input, error) {
 	var err error
 	var inFile *os.File
 	if filename == "-" {
@@ -102,7 +131,7 @@ func readInput(filename string) (string, error) {
 	} else {
 		inFile, err = os.Open(filename)
 		if err != nil {
-			return "", fmt.Errorf("failed to open %s\n%v", filename, err)
+			return Input{}, fmt.Errorf("failed to open %s\n%v", filename, err)
 		}
 		// nolint: errcheck
 		defer inFile.Close()
@@ -110,12 +139,25 @@ func readInput(filename string) (string, error) {
 	bytes, err := ioutil.ReadAll(inFile)
 	if err != nil {
 		err = fmt.Errorf("read failed for %s\n%v", filename, err)
-		return "", err
+		return Input{}, err
 	}
-	return string(bytes), nil
+	return fileInput(filename, string(bytes)), nil
 }
 
-func openOutFile(filename string) (out *os.File, err error) {
+type nullWriteCloser struct{}
+
+func (nullWriteCloser) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func (nullWriteCloser) Close() error {
+	return nil
+}
+
+func openOutFile(filename string) (out io.WriteCloser, err error) {
+	if filename == "" {
+		return nullWriteCloser{}, nil
+	}
 	if filename == "-" {
 		return os.Stdout, nil
 	}

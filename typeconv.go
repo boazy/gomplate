@@ -47,6 +47,15 @@ func unmarshalArray(obj []interface{}, in string, f func([]byte, interface{}) er
 	return obj
 }
 
+// fromStrings - Convert []strings to []interface{}
+func (t *TypeConv) fromStrings(in []string) []interface{} {
+	out := make([]interface{}, len(in))
+	for i, x := range in {
+		out[i] = x
+	}
+	return out
+}
+
 // JSON - Unmarshal a JSON Object
 func (t *TypeConv) JSON(in string) map[string]interface{} {
 	obj := make(map[string]interface{})

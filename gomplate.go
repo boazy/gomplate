@@ -7,26 +7,32 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig"
 	"github.com/hairyhenderson/gomplate/aws"
 )
 
-func (g *Gomplate) createTemplate() *template.Template {
-	return template.New("template").Funcs(g.funcMap).Option("missingkey=error")
+func (g *Gomplate) createChildTemplate(filename string) *template.Template {
+	if filename == "" {
+		filename = "anonymous_template"
+	}
+	return g.parent.New(filename)
 }
 
 // Gomplate -
 type Gomplate struct {
-	funcMap    template.FuncMap
-	leftDelim  string
-	rightDelim string
+	parent *template.Template
 }
 
 // RunTemplate -
-func (g *Gomplate) RunTemplate(text string, out io.Writer) {
+func (g *Gomplate) RunTemplate(input Input, out io.Writer) {
 	context := &Context{}
-	tmpl, err := g.createTemplate().Delims(g.leftDelim, g.rightDelim).Parse(text)
+	tmpl, err := g.createChildTemplate(input.filename).Parse(input.text)
 	if err != nil {
-		log.Fatalf("Line %q: %v\n", text, err)
+		log.Fatalf("Line %q: %v\n", input.text, err)
+	}
+
+	if input.partial {
+		return // Do not execute partials
 	}
 
 	if err := tmpl.Execute(out, context); err != nil {
@@ -41,50 +47,54 @@ func NewGomplate(data *Data, leftDelim, rightDelim string) *Gomplate {
 	stringfunc := &stringFunc{}
 	ec2meta := aws.NewEc2Meta()
 	ec2info := aws.NewEc2Info()
+
+	funcMap := template.FuncMap{
+		"getenv":           env.Getenv,
+		"fromStrings":      typeconv.fromStrings,
+		"bool":             typeconv.Bool,
+		"has":              typeconv.Has,
+		"json":             typeconv.JSON,
+		"jsonArray":        typeconv.JSONArray,
+		"yaml":             typeconv.YAML,
+		"yamlArray":        typeconv.YAMLArray,
+		"toml":             typeconv.TOML,
+		"csv":              typeconv.CSV,
+		"csvByRow":         typeconv.CSVByRow,
+		"csvByColumn":      typeconv.CSVByColumn,
+		"slice":            typeconv.Slice,
+		"indent":           typeconv.indent,
+		"join":             typeconv.Join,
+		"toJSON":           typeconv.ToJSON,
+		"toJSONPretty":     typeconv.toJSONPretty,
+		"toYAML":           typeconv.ToYAML,
+		"toTOML":           typeconv.ToTOML,
+		"toCSV":            typeconv.ToCSV,
+		"ec2meta":          ec2meta.Meta,
+		"ec2dynamic":       ec2meta.Dynamic,
+		"ec2tag":           ec2info.Tag,
+		"ec2region":        ec2meta.Region,
+		"contains":         strings.Contains,
+		"hasPrefix":        strings.HasPrefix,
+		"hasSuffix":        strings.HasSuffix,
+		"replaceAll":       stringfunc.replaceAll,
+		"split":            strings.Split,
+		"splitN":           strings.SplitN,
+		"title":            strings.Title,
+		"toUpper":          strings.ToUpper,
+		"toLower":          strings.ToLower,
+		"trim":             strings.Trim,
+		"trimSpace":        strings.TrimSpace,
+		"urlParse":         url.Parse,
+		"datasource":       data.Datasource,
+		"ds":               data.Datasource,
+		"datasourceExists": data.DatasourceExists,
+		"include":          data.include,
+	}
+	parentTpl := template.New("parent").
+		Funcs(funcMap).Funcs(sprig.TxtFuncMap()).Delims(leftDelim, rightDelim)
+
 	return &Gomplate{
-		leftDelim:  leftDelim,
-		rightDelim: rightDelim,
-		funcMap: template.FuncMap{
-			"getenv":           env.Getenv,
-			"bool":             typeconv.Bool,
-			"has":              typeconv.Has,
-			"json":             typeconv.JSON,
-			"jsonArray":        typeconv.JSONArray,
-			"yaml":             typeconv.YAML,
-			"yamlArray":        typeconv.YAMLArray,
-			"toml":             typeconv.TOML,
-			"csv":              typeconv.CSV,
-			"csvByRow":         typeconv.CSVByRow,
-			"csvByColumn":      typeconv.CSVByColumn,
-			"slice":            typeconv.Slice,
-			"indent":           typeconv.indent,
-			"join":             typeconv.Join,
-			"toJSON":           typeconv.ToJSON,
-			"toJSONPretty":     typeconv.toJSONPretty,
-			"toYAML":           typeconv.ToYAML,
-			"toTOML":           typeconv.ToTOML,
-			"toCSV":            typeconv.ToCSV,
-			"ec2meta":          ec2meta.Meta,
-			"ec2dynamic":       ec2meta.Dynamic,
-			"ec2tag":           ec2info.Tag,
-			"ec2region":        ec2meta.Region,
-			"contains":         strings.Contains,
-			"hasPrefix":        strings.HasPrefix,
-			"hasSuffix":        strings.HasSuffix,
-			"replaceAll":       stringfunc.replaceAll,
-			"split":            strings.Split,
-			"splitN":           strings.SplitN,
-			"title":            strings.Title,
-			"toUpper":          strings.ToUpper,
-			"toLower":          strings.ToLower,
-			"trim":             strings.Trim,
-			"trimSpace":        strings.TrimSpace,
-			"urlParse":         url.Parse,
-			"datasource":       data.Datasource,
-			"ds":               data.Datasource,
-			"datasourceExists": data.DatasourceExists,
-			"include":          data.include,
-		},
+		parent: parentTpl,
 	}
 }
 
@@ -102,13 +112,13 @@ func runTemplate(o *GomplateOpts) error {
 }
 
 // Called from process.go ...
-func renderTemplate(g *Gomplate, inString string, outPath string) error {
+func renderTemplate(g *Gomplate, input Input, outPath string) error {
 	outFile, err := openOutFile(outPath)
 	if err != nil {
 		return err
 	}
 	// nolint: errcheck
 	defer outFile.Close()
-	g.RunTemplate(inString, outFile)
+	g.RunTemplate(input, outFile)
 	return nil
 }
